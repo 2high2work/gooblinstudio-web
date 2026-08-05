@@ -40,20 +40,33 @@ export default function EtapaPanel({ index, isActive }: EtapaPanelProps) {
   const etapa = t.etapas[index];
   const media = etapaMedia[index];
   const [visible, setVisible] = useState(false);
-  const [flipped, setFlipped] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (isActive) {
-      // Slight delay for entrance animation
-      timerRef.current = setTimeout(() => setVisible(true), 120);
-    } else {
-      setVisible(false);
-      // Reset flip when leaving this panel
-      setFlipped(false);
+    if (!isActive) {
+      const resetFrame = window.requestAnimationFrame(() => {
+        setVisible(false);
+        setIsDrawerOpen(false);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(resetFrame);
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      };
     }
+
+    // Slight delay for entrance animation
+    timerRef.current = window.setTimeout(() => setVisible(true), 120);
+
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [isActive]);
 
@@ -69,20 +82,11 @@ export default function EtapaPanel({ index, isActive }: EtapaPanelProps) {
       aria-label={etapa.title}
       role="region"
     >
-      {/* Large background text for depth */}
-      <span className="etapa-panel__bg-text" aria-hidden="true">
-        {etapa.title}
-      </span>
-
       <div
-        className={`etapa-panel__content ${visible ? 'etapa-panel__content--visible' : ''}`}
+        className={`etapa-panel__content ${visible ? 'etapa-panel__content--visible' : ''} ${isDrawerOpen ? 'etapa-panel__content--drawer-open' : ''}`}
       >
-        {/* Slider wrapper — slides left when flipped */}
-        <div
-          className={`etapa-panel__slider ${flipped ? 'etapa-panel__slider--flipped' : ''}`}
-        >
-          {/* ===== FRONT FACE ===== */}
-          <div className="etapa-panel__front">
+        <div className="etapa-panel__content-inner">
+          <div className="etapa-panel__main">
             <div className="etapa-panel__image-container">
               <img
                 src={ETAPA_IMAGES[index]}
@@ -104,34 +108,28 @@ export default function EtapaPanel({ index, isActive }: EtapaPanelProps) {
               <p className="etapa-panel__body">{etapa.body}</p>
             </div>
 
-            {/* Arrow to reveal back panel */}
             <button
-              className="etapa-panel__arrow-btn etapa-panel__arrow-btn--right"
-              onClick={() => setFlipped(true)}
-              aria-label={`${t.menuGames} & ${t.menuComics}`}
+              className={`etapa-panel__arrow-btn etapa-panel__arrow-btn--toggle ${isDrawerOpen ? 'etapa-panel__arrow-btn--open' : ''}`}
+              onClick={() => setIsDrawerOpen((prev) => !prev)}
+              aria-label={isDrawerOpen ? 'Close media menu' : `${t.menuGames} & ${t.menuComics}`}
+              aria-expanded={isDrawerOpen}
+              type="button"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {isDrawerOpen ? (
+                  <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                ) : (
+                  <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                )}
               </svg>
             </button>
           </div>
 
-          {/* ===== BACK FACE ===== */}
-          <div className="etapa-panel__back">
-            {/* Arrow to go back */}
-            <button
-              className="etapa-panel__arrow-btn etapa-panel__arrow-btn--left"
-              onClick={() => setFlipped(false)}
-              aria-label="Back"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-
-            {/* Scrollable inner content */}
-            <div className="etapa-panel__back-inner">
-              {/* Games section */}
+          <aside
+            className={`etapa-panel__drawer ${isDrawerOpen ? 'etapa-panel__drawer--open' : ''}`}
+            aria-label={`${etapa.title} media menu`}
+          >
+            <div className="etapa-panel__drawer-inner">
               <div className="etapa-panel__media-section">
                 <h3 className="etapa-panel__media-heading">{t.menuGames}</h3>
                 {hasGames ? (
@@ -144,7 +142,6 @@ export default function EtapaPanel({ index, isActive }: EtapaPanelProps) {
                         rel={game.url !== '#' ? 'noopener noreferrer' : undefined}
                         className="etapa-panel__media-item"
                       >
-                        <span className="etapa-panel__media-item-icon" aria-hidden="true">🎮</span>
                         <span className="etapa-panel__media-item-label">{game.label}</span>
                         <span className="etapa-panel__media-item-arrow" aria-hidden="true">→</span>
                       </a>
@@ -155,10 +152,8 @@ export default function EtapaPanel({ index, isActive }: EtapaPanelProps) {
                 )}
               </div>
 
-              {/* Divider between Games and Comics */}
               <div className="etapa-panel__media-divider" aria-hidden="true" />
 
-              {/* Comics section */}
               <div className="etapa-panel__media-section">
                 <h3 className="etapa-panel__media-heading">{t.menuComics}</h3>
                 {hasComics ? (
@@ -171,7 +166,6 @@ export default function EtapaPanel({ index, isActive }: EtapaPanelProps) {
                         rel={comic.url !== '#' ? 'noopener noreferrer' : undefined}
                         className="etapa-panel__media-item"
                       >
-                        <span className="etapa-panel__media-item-icon" aria-hidden="true">📖</span>
                         <span className="etapa-panel__media-item-label">{comic.label}</span>
                         <span className="etapa-panel__media-item-arrow" aria-hidden="true">→</span>
                       </a>
@@ -182,7 +176,7 @@ export default function EtapaPanel({ index, isActive }: EtapaPanelProps) {
                 )}
               </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </section>

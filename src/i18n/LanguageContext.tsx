@@ -16,17 +16,23 @@ const LanguageContext = createContext<LanguageContextType>({
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  // Use a stable initial value that matches server rendering to avoid
+  // hydration mismatches. Read localStorage only after mount and then
+  // update the language if different.
   const [language, setLanguage] = useState<Language>('es');
 
+  // On mount, sync from saved preference (if any) without causing
+  // a server/client mismatch on first paint.
   useEffect(() => {
-    const saved = localStorage.getItem('cdln-lang') as Language | null;
-    if (saved && (saved === 'es' || saved === 'en')) {
+    const saved = window.localStorage.getItem('cdln-lang') as Language | null;
+    if (saved && (saved === 'es' || saved === 'en') && saved !== language) {
       setLanguage(saved);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('cdln-lang', language);
+    window.localStorage.setItem('cdln-lang', language);
     document.documentElement.lang = language;
   }, [language]);
 
